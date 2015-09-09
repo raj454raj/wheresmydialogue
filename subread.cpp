@@ -142,10 +142,22 @@ string millisecondsToTime(ll ins) {
     return finaltime;
 }
 
+// Replace all occurrences of a substring with given string
+void replaceAll(string& str, const string& from, const string& to) {
+    if(from.empty())
+        return;
+    size_t start_pos = 0;
+    while((start_pos = str.find(from, start_pos)) != string::npos) {
+        str.replace(start_pos, from.length(), to);
+        // In case 'to' contains 'from', like replacing 'x' with 'yx'
+        start_pos += to.length();
+    }
+}
+
 int main(int argc, char *argv[]) {
 
     // If filename not provided
-    if(argc < 2) {
+    if(argc < 3) {
         cout << "Please pass the filename as the argument: ./a.out filename.srt\n";
         return 0;
     }
@@ -160,6 +172,11 @@ int main(int argc, char *argv[]) {
     vector<string> dlg, fullLine;
     set<string> dialogueSet, lineSet;
     string instant;
+    vector<int> results;
+    int line_number = 1;
+    int choice;
+    string movie_filename(argv[2]);
+    replaceAll(movie_filename, " ", "\\ ");
 
     cout << "Enter the dialogue to be searched: ";
     getline(cin, dialogue);
@@ -176,6 +193,7 @@ int main(int argc, char *argv[]) {
         complete_line = dur = "";
         cnt = 0;
         flag = 0;
+        results.push_back(0);
         while (getline(file, line)) {
             // Remove all the carriage returns
             line.erase(remove(line.begin(), line.end(), '\r'), line.end());
@@ -195,7 +213,7 @@ int main(int argc, char *argv[]) {
                     dur += line;
                 }
                 else {
-                    if(complete_line != "")
+                    if (complete_line != "")
                         complete_line += " ";
                     complete_line += line;
                 }
@@ -228,13 +246,16 @@ int main(int argc, char *argv[]) {
                         time_instant = totalDuration.first;
                     else {
                         wordstillnow = count(complete_line.begin(), complete_line.begin() + pos, ' ') + 1;
-                        // Compute the exact instant time where the word is voiced 
+                        // Compute the exact instant time where the word is voiced
                         time_instant = totalDuration.first + pos * (totalDuration.second - totalDuration.first) / complete_line.size();
                     }
 
                     // Convert milliseconds to readable format
                     instant = millisecondsToTime(time_instant);
-                    cout << instant << " " << match_percentage << "%  ";
+
+                    results.push_back(time_instant / 1000);
+                    cout << BLUE << line_number << ". " << RESET_COLOR << instant << " " << match_percentage << "%  ";
+                    line_number++;
 
                     // Loop through the complete_string and color the matching words
                     for(int i = 0 ; i < fullLine.size() ; ++i) {
@@ -246,7 +267,7 @@ int main(int argc, char *argv[]) {
                     }
                     cout << endl;
                     // Atleast one match found
-                    flag = 1;   
+                    flag = 1;
                 }
 
                 // Reset loop variables
@@ -260,6 +281,32 @@ int main(int argc, char *argv[]) {
         // If no match found
         if(!flag) {
             cout << "Please try to be more precise...\n";
+        }
+        else {
+            cout << "The result number for your required dialogue: ";
+            scanf("%d", &choice);
+
+            string final_command = "vlc " + movie_filename + " --start-time=";
+
+            while (1) {
+                if (choice && choice < results.size()) {
+
+                    final_command += toString((ll)results[choice] - 1);
+                    // Minor hack to give accurate results ;)
+                    final_command += ".1";
+                    const char *command = final_command.c_str();
+                    system(command);
+                    break;
+
+                }
+                else {
+
+                    cout << RED << "Invalid choice. Give input between 1-" << results.size() - 1 << RESET_COLOR << endl;
+                    cout << "New choice: ";
+                    scanf("%d", &choice);
+
+                }
+            }
         }
         file.close();
     }
